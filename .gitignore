@@ -1,0 +1,69 @@
+# Mac OS
+.DS_Store
+**/.DS_Store
+
+# vscode
+.vscode
+.vscode/
+Untitled.code-workspace
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# x-code
+*.code-workspace
+
+# Optional eslint cache
+.eslintcache
+
+# idea
+.idea/**/profiles_settings.xml
+.idea/**/Project_Default.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/troph-image-alert.iml
+.idea/vcs.xml
+.idea/.gitignore
+.idea/
+

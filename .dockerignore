@@ -1,0 +1,21 @@
+.git
+*Dockerfile*
+*docker-compose*
+.vscode
+.vscode/
+Untitled.code-workspace
+__pycache__/
+.idea
+.gitignore
+.github
+.cache
+*.md
+LICENSE
+Makefile
+vendor/
+.editorconfig
+.env
+# comment
+*/temp*
+*/*/temp*
+temp?
