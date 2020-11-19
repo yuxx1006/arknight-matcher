@@ -66,19 +66,34 @@ def get_image_classification():
     marker_ratio = matcher.find_ratio(default)
     resize = matcher.maintain_aspect_ratio_resize(default,
                                                   height=int(DEFAULT_IMAGE_HEIGHT / float(marker_ratio)))
-    hits = matcher.match_template(resize)
+
+    # 修改部分：把图像二值化，让干员方框下部的黑色部分更明显，方便匹配
+    black_img = resize.copy()
+    THRES = 60  # 这个阈值可以调整，目前所有像素值[60,60,60]以下的像素映射为黑色，否则为白色
+    black_img[black_img <= THRES] = 0
+    black_img[black_img > THRES] = 255
+    black_img = cv2.cvtColor(black_img, cv2.COLOR_BGR2GRAY)
+    black_img[black_img != 0] = 255
+    black_img_h, black_img_w = black_img.shape[:2]
+    mask = np.zeros((black_img_h + 2, black_img_w + 2), dtype=np.uint8)
+    for p in [(black_img_w - 1, 0), (black_img_w - 1, black_img_h - 1)]:  # 一些视频有上下边框，把它们去除
+        cv2.floodFill(black_img, mask, p, [255, 255, 255])
+    cv2.imwrite("images/black.jpg", black_img)
+
+    hits = matcher.match_template(black_img)
     # draw box for each img
-    # overlay = drawBoxesOnRGB(resize, hits, showLabel=True)
-    # cv2.imwrite('images/box.jpg', overlay)
+    overlay = drawBoxesOnRGB(resize, hits, showLabel=True)
+    cv2.imwrite('images/box.jpg', overlay)
     names = []
     for key, value in hits['BBox'].iteritems():
-        x, y, w, h = value[0], value[1], value[2], value[3]
+        x, y, w, h = value[0], value[1] - 264, value[2], value[3] + 264  # 264 是一个要算的数，用于把方框拉倒指定长度
         crop = resize[y:y + h, x:x + w]
+        if len(crop) == 0: continue
         crop_resize = matcher.maintain_aspect_ratio_resize(crop,
                                              height=410)
         final_test = crop_resize[5:5 + 265, 5:5 + 190]
         # download image for test purpose
-        # cv2.imwrite('test/' + str(key) + '.jpg', final_test)
+        cv2.imwrite('test/' + str(key) + '.jpg', final_test)
 
         matched = matcher.match_hash(final_test, client.db, store)
         if len(matched) != 0:

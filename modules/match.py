@@ -85,7 +85,7 @@ class Match:
     def match_template(self, resize):
         t1 = cv2.imread(TEMPLATE_IMG_1, cv2.IMREAD_UNCHANGED)
         list_template = [('t1', t1)]
-        hits = matchTemplates(list_template, resize, score_threshold=0.4, method=cv2.TM_CCOEFF_NORMED, maxOverlap=0.1)
+        hits = matchTemplates(list_template, resize, score_threshold=0.3, method=cv2.TM_CCOEFF_NORMED, maxOverlap=0.2)
         return hits
 
     """
