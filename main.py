@@ -1,10 +1,10 @@
 try:
-    from PIL import Image
+    from PIL import Image, ImageDraw, ImageFont
 except ImportError:
     import Image
 import cv2
 from flask import Flask, request, Response, jsonify
-from flask_pymongo import PyMongo
+from flask_pymongo import PyMongo, MongoClient
 from pymongo.errors import ConnectionFailure, AutoReconnect, ServerSelectionTimeoutError
 import urllib.request
 from urllib.error import URLError, HTTPError
@@ -14,16 +14,18 @@ import os
 import numpy as np
 import jsonpickle
 import time
+from datetime import timedelta
 from modules.match import Match
 from stores.image_hash_store import ImageHashStore
 from MTM import matchTemplates, drawBoxesOnRGB
 
-MONGO_URL = "127.0.0.1:27017/arcknights"
+MONGO_URL = "127.0.0.1:27017/arknights"
 client = None
 store = ImageHashStore()
 IMAGE_LOCAL = './images/local-filename.'
 TEMPLATE_PATH = './template/'
 DEFAULT_IMAGE_HEIGHT = 1080
+NAME_DICT = {}
 app = Flask(__name__)
 
 
@@ -44,9 +46,9 @@ def load_hash():
 # -------------- Test Routes ----------------
 @app.route('/', methods=['GET'])
 def home():
-    return '''<h1>TEST</h1>
-<p>The connection works</p>'''
-
+    with open('home.html', encoding='utf-8', errors='ignore') as f:
+        r = f.read()
+    return  r
 
 
 @app.route('/find-operators', methods=['POST'])
@@ -57,6 +59,7 @@ def get_image_classification():
         nparr = np.frombuffer(r.files['image'].read(), np.uint8)
         # nparr = np.frombuffer(r.data, np.uint8)
         test_img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+        test_img = test_img[:,:,:3]
     except Exception as e:
         raise RuntimeError("Failed to load image data")
 
@@ -78,13 +81,14 @@ def get_image_classification():
     black_img[black_img > THRES] = 255
     black_img = cv2.cvtColor(black_img, cv2.COLOR_BGR2GRAY)
     black_img[black_img != 0] = 255
-    cv2.imwrite("debug/black.jpg", black_img)
+    cv2.imwrite("static/black.jpg", black_img)
 
     hits = matcher.match_template(black_img)
     # draw box for each img
     # overlay = drawBoxesOnRGB(resize, hits, showLabel=True)
     # cv2.imwrite('images/box.jpg', overlay)
     names = []
+    result_img = resize.copy()
     for key, value in hits['BBox'].iteritems():
         x, y, w, h = value[0], value[1] - 264, value[2], value[3] + 264
         crop = resize[y:y + h, x:x + w]
@@ -92,11 +96,12 @@ def get_image_classification():
         crop_resize = matcher.maintain_aspect_ratio_resize(crop,
                                              height=410)
         final_test = crop_resize[5:5 + 265, 5:5 + 190]
-        cv2.imwrite("./debug/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
+        cv2.imwrite("./static/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
 
         # download image for test purpose
         # cv2.imwrite('test/' + str(key) + '.jpg', final_test)
 
+        result_img = cv2.rectangle(result_img, (x, y), (x + w, y + h), [128, 0, 0], thickness=3)
         matched = matcher.match_hash(final_test, client.db, store)
         if len(matched) != 0:
             if matched[0] == '00': continue
@@ -105,28 +110,48 @@ def get_image_classification():
                 id = matched[0][:p]
             else:
                 id = matched[0]
+            name = NAME_DICT[id]
+            names.append(name)
+
+            result_img = cv2.rectangle(result_img, (x, y), (x + w, y + 70), [128, 0, 0], thickness=-1)
+            result_img = Image.fromarray(cv2.cvtColor(result_img, cv2.COLOR_BGR2RGB))
+            draw = ImageDraw.Draw(result_img)
+            fontStyle = ImageFont.truetype("font/simsun.ttc", 50, encoding="utf-8")
+            draw.text((x, y), name, (255, 255, 255), font=fontStyle)
+            result_img = cv2.cvtColor(np.asarray(result_img), cv2.COLOR_RGB2BGR)
+
+    result_img = matcher.maintain_aspect_ratio_resize(result_img, width=1024)
+    cv2.imwrite("./static/result.jpg", result_img)
         # print("Keys {} with minimum values are : {}".format(key, str(matched)))
     names = list(dict.fromkeys(names))
     response_pickled = jsonpickle.encode({'names': names})
-    print("--- % seconds ---" % (time.time() - start))
-    try:
-        return Response(response=response_pickled, status=200, mimetype="application/json")
-    except Exception as error:
-        return json.dumps({'error': error})
+    print("--- %s seconds ---" % (time.time() - start))
+    print(names)
+
+    with open('result.html', encoding='utf-8', errors='ignore') as f:
+        response = f.read()
+    return  response
 
 
 @app.errorhandler(404)
 def page_not_found(e):
     return "<h1>404</h1><p>The resource could not be found.</p>", 404
 
+def load_dict(file_path):
+    with open(file_path, encoding='utf-8', errors='ignore') as file:
+        for line in file.readlines():
+            p = line.find(',')
+            NAME_DICT[line[:p]] = line[p+1:-1]
 
 if __name__ == "__main__":
+    os.chdir('D:/GitHub/arknight-matcher/')
     try:
         if os.environ.get("MONGO"):
             MONGO_URL = os.environ.get("MONGO")
         app.config["MONGO_URI"] = "mongodb://{}".format(MONGO_URL)
         client = PyMongo(app)
         data = load_hash()
+        load_dict("arknights.csv")
         bulk = store.insert_bulk(client.db, data)
         store.create_index(client.db, "_id")
     except (ServerSelectionTimeoutError, ConnectionFailure, AutoReconnect):
@@ -135,4 +160,5 @@ if __name__ == "__main__":
         print(e)
         raise
 
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
     app.run(host='0.0.0.0', port=5005, debug=True)
