@@ -67,46 +67,44 @@ def get_image_classification():
     resize = matcher.maintain_aspect_ratio_resize(default,
                                                   height=int(DEFAULT_IMAGE_HEIGHT / float(marker_ratio)))
 
-    # 修改部分：把图像二值化，让干员方框下部的黑色部分更明显，方便匹配
+    # image binary for box detection
     black_img = resize.copy()
-    THRES = 60  # 这个阈值可以调整，目前所有像素值[60,60,60]以下的像素映射为黑色，否则为白色
+    black_img_h, black_img_w = black_img.shape[:2]
+    mask = np.zeros((black_img_h + 2, black_img_w + 2), dtype=np.uint8)
+    for p in [(black_img_w - 1, 0), (black_img_w - 1, black_img_h - 1)]:
+        cv2.floodFill(black_img, mask, p, [255, 255, 255])
+    THRES = 60
     black_img[black_img <= THRES] = 0
     black_img[black_img > THRES] = 255
     black_img = cv2.cvtColor(black_img, cv2.COLOR_BGR2GRAY)
     black_img[black_img != 0] = 255
-    black_img_h, black_img_w = black_img.shape[:2]
-    mask = np.zeros((black_img_h + 2, black_img_w + 2), dtype=np.uint8)
-    for p in [(black_img_w - 1, 0), (black_img_w - 1, black_img_h - 1)]:  # 一些视频有上下边框，把它们去除
-        cv2.floodFill(black_img, mask, p, [255, 255, 255])
-    cv2.imwrite("images/black.jpg", black_img)
+    cv2.imwrite("debug/black.jpg", black_img)
 
     hits = matcher.match_template(black_img)
     # draw box for each img
-    overlay = drawBoxesOnRGB(resize, hits, showLabel=True)
-    cv2.imwrite('images/box.jpg', overlay)
+    # overlay = drawBoxesOnRGB(resize, hits, showLabel=True)
+    # cv2.imwrite('images/box.jpg', overlay)
     names = []
     for key, value in hits['BBox'].iteritems():
-        x, y, w, h = value[0], value[1] - 264, value[2], value[3] + 264  # 264 是一个要算的数，用于把方框拉倒指定长度
+        x, y, w, h = value[0], value[1] - 264, value[2], value[3] + 264
         crop = resize[y:y + h, x:x + w]
         if len(crop) == 0: continue
         crop_resize = matcher.maintain_aspect_ratio_resize(crop,
                                              height=410)
         final_test = crop_resize[5:5 + 265, 5:5 + 190]
+        cv2.imwrite("./debug/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
+
         # download image for test purpose
-        cv2.imwrite('test/' + str(key) + '.jpg', final_test)
+        # cv2.imwrite('test/' + str(key) + '.jpg', final_test)
 
         matched = matcher.match_hash(final_test, client.db, store)
         if len(matched) != 0:
-            if '-v2' in matched[0]:
-                names.append(matched[0].replace('-v2', ''))
-            elif '-v3' in matched[0]:
-                names.append(matched[0].replace('-v3', ''))
-            elif '-v4' in matched[0]:
-                names.append(matched[0].replace('-v4', ''))
-            elif '-v5' in matched[0]:
-                names.append(matched[0].replace('-v5', ''))
+            if matched[0] == '00': continue
+            if '-v' in matched[0]:
+                p = matched[0].find('-v')
+                id = matched[0][:p]
             else:
-                names.append(matched[0])
+                id = matched[0]
         # print("Keys {} with minimum values are : {}".format(key, str(matched)))
     names = list(dict.fromkeys(names))
     response_pickled = jsonpickle.encode({'names': names})

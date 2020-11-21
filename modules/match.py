@@ -9,8 +9,8 @@ from MTM import matchTemplates
 
 # constant
 TEMPLATE_IMG = './images/marker.jpg'
-TEMPLATE_IMG_1 = './images/t1.jpg'
-
+TEMPLATE_IMG_1 = './images/t'
+TEMPLATE_N = 3
 
 class Match:
     def __init__(self):
@@ -83,9 +83,11 @@ class Match:
            *   $names pd series with key, bbox
            """
     def match_template(self, resize):
-        t1 = cv2.imread(TEMPLATE_IMG_1, cv2.IMREAD_UNCHANGED)
-        list_template = [('t1', t1)]
-        hits = matchTemplates(list_template, resize, score_threshold=0.3, method=cv2.TM_CCOEFF_NORMED, maxOverlap=0.2)
+        t = []
+        for i in range(TEMPLATE_N):
+            t.append(cv2.imread(TEMPLATE_IMG_1+str(i+1)+'.jpg', cv2.IMREAD_UNCHANGED))
+        list_template = [('t%s'%i, t[i]) for i in range(TEMPLATE_N)]
+        hits = matchTemplates(list_template, resize, score_threshold=0.3, method=cv2.TM_CCOEFF_NORMED, maxOverlap=0.1)
         return hits
 
     """
