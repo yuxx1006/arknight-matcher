@@ -57,7 +57,6 @@ def get_image_classification():
     try:
         r = request
         nparr = np.frombuffer(r.files['image'].read(), np.uint8)
-        # nparr = np.frombuffer(r.data, np.uint8)
         test_img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
         test_img = test_img[:,:,:3]
     except Exception as e:
@@ -84,13 +83,11 @@ def get_image_classification():
     cv2.imwrite("static/black.jpg", black_img)
 
     hits = matcher.match_template(black_img)
-    # draw box for each img
-    # overlay = drawBoxesOnRGB(resize, hits, showLabel=True)
-    # cv2.imwrite('images/box.jpg', overlay)
     names = []
     result_img = resize.copy()
+
     for key, value in hits['BBox'].iteritems():
-        x, y, w, h = value[0], value[1] - 264, value[2], value[3] + 264
+        x, y, w, h = value[0], value[1]-262, 205, 410
         crop = resize[y:y + h, x:x + w]
         if len(crop) == 0: continue
         crop_resize = matcher.maintain_aspect_ratio_resize(crop,
@@ -98,10 +95,7 @@ def get_image_classification():
         final_test = crop_resize[5:5 + 265, 5:5 + 190]
         cv2.imwrite("./static/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
 
-        # download image for test purpose
-        # cv2.imwrite('test/' + str(key) + '.jpg', final_test)
-
-        result_img = cv2.rectangle(result_img, (x, y), (x + w, y + h), [128, 0, 0], thickness=3)
+        # result_img = cv2.rectangle(result_img, (x, y), (x + w, y + h), [128, 0, 0], thickness=3)
         matched = matcher.match_hash(final_test, client.db, store)
         if len(matched) != 0:
             if matched[0] == '00': continue
@@ -113,6 +107,7 @@ def get_image_classification():
             name = NAME_DICT[id]
             names.append(name)
 
+            result_img = cv2.rectangle(result_img, (x, y), (x + w, y + h), [128, 0, 0], thickness=3)
             result_img = cv2.rectangle(result_img, (x, y), (x + w, y + 70), [128, 0, 0], thickness=-1)
             result_img = Image.fromarray(cv2.cvtColor(result_img, cv2.COLOR_BGR2RGB))
             draw = ImageDraw.Draw(result_img)
@@ -122,9 +117,7 @@ def get_image_classification():
 
     result_img = matcher.maintain_aspect_ratio_resize(result_img, width=1024)
     cv2.imwrite("./static/result.jpg", result_img)
-        # print("Keys {} with minimum values are : {}".format(key, str(matched)))
     names = list(dict.fromkeys(names))
-    response_pickled = jsonpickle.encode({'names': names})
     print("--- %s seconds ---" % (time.time() - start))
     print(names)
 

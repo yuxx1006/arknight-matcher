@@ -10,7 +10,7 @@ from MTM import matchTemplates
 # constant
 TEMPLATE_IMG = './images/marker.jpg'
 TEMPLATE_IMG_1 = './images/t'
-TEMPLATE_N = 3
+TEMPLATE_N = 4
 
 class Match:
     def __init__(self):
