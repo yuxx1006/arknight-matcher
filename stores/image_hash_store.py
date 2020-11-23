@@ -40,6 +40,7 @@ class ImageHashStore:
         if db is None:
             raise errors.ConnectionFailure
         try:
+            db.imagehashes.delete_many({})
             rc = db.imagehashes.insert_many(data)
         except errors.DuplicateKeyError as e:
             rc = "DuplicateKeyError: '{}'".format(e)
