@@ -57,7 +57,7 @@ class Match:
         (tH, tW) = mark.shape[:2]
 
         found = None
-        for scale in np.linspace(0.5, 2, 20)[::-1]:
+        for scale in np.linspace(0.5, 2, 30)[::-1]:
             # resize the image according to the scale
             resized = self.maintain_aspect_ratio_resize(gray, height=int(gray.shape[0]*scale))
             r = gray.shape[1] / float(resized.shape[1])

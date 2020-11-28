@@ -3,11 +3,9 @@ try:
 except ImportError:
     import Image
 import cv2
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response
 from flask_pymongo import PyMongo, MongoClient
 from pymongo.errors import ConnectionFailure, AutoReconnect, ServerSelectionTimeoutError
-import urllib.request
-from urllib.error import URLError, HTTPError
 import imagehash
 import json
 import os
@@ -49,6 +47,38 @@ def home():
     with open('home.html', encoding='utf-8', errors='ignore') as f:
         r = f.read()
     return  r
+
+
+@app.route('/images/<image_name>', methods=['POST'])
+def insert_hash(image_name):
+    global client
+    try:
+        r = request
+        nparr = np.frombuffer(r.files['image'].read(), np.uint8)
+        test_img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+        test_img = test_img[:,:,:3]
+    except Exception as e:
+        raise RuntimeError("Failed to load image data")
+    pil_image = Image.fromarray(test_img)
+    hashvalue = imagehash.dhash(pil_image)
+    hashes = {"_id": str(hashvalue), "operator": image_name}
+    # save the image hash
+    try:
+        if client is None:
+            app.config["MONGO_URI"] = "mongodb://{}".format(os.environ.get("MONGO"))
+            client = PyMongo(app)
+        rs = store.insert(client.db, hashes)
+        print(rs)
+        store.create_index(client.db, "_id")
+        json_response = json.dumps(hashes, indent=4, sort_keys=True, ensure_ascii=False)
+    except (AutoReconnect, ServerSelectionTimeoutError) as error:
+        raise RuntimeError('server not available: {}'.format(error))
+    except Exception as e:
+        raise e
+    response = Response(json_response, content_type='application/json; charset=utf-8')
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.status_code = 200
+    return response
 
 
 @app.route('/find-operators', methods=['POST'])
@@ -93,7 +123,7 @@ def get_image_classification():
         crop_resize = matcher.maintain_aspect_ratio_resize(crop,
                                              height=410)
         final_test = crop_resize[5:5 + 265, 5:5 + 190]
-        cv2.imwrite("./static/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
+        cv2.imwrite("./static/test/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
 
         # result_img = cv2.rectangle(result_img, (x, y), (x + w, y + h), [128, 0, 0], thickness=3)
         matched = matcher.match_hash(final_test, client.db, store)
@@ -137,7 +167,7 @@ def load_dict(file_path):
             NAME_DICT[line[:p]] = line[p+1:-1]
 
 if __name__ == "__main__":
-    os.chdir('D:/GitHub/arknight-matcher/')
+    # os.chdir('D:/GitHub/arknight-matcher/')
     try:
         if os.environ.get("MONGO"):
             MONGO_URL = os.environ.get("MONGO")
