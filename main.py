@@ -16,6 +16,8 @@ from datetime import timedelta
 from modules.match import Match
 from stores.image_hash_store import ImageHashStore
 from MTM import matchTemplates, drawBoxesOnRGB
+import random
+import string
 
 MONGO_URL = "127.0.0.1:27017/arknights"
 client = None
@@ -24,6 +26,7 @@ IMAGE_LOCAL = './images/local-filename.'
 TEMPLATE_PATH = './template/'
 DEFAULT_IMAGE_HEIGHT = 1080
 NAME_DICT = {}
+DEBUG_MODE = False
 app = Flask(__name__)
 
 
@@ -92,6 +95,8 @@ def get_image_classification():
     except Exception as e:
         raise RuntimeError("Failed to load image data")
 
+    random_id = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+    cv2.imwrite("./static/origin%s.jpg"%random_id, test_img)
     matcher = Match()
     # resize img to match template
     default = matcher.maintain_aspect_ratio_resize(test_img, height=DEFAULT_IMAGE_HEIGHT)
@@ -110,7 +115,7 @@ def get_image_classification():
     black_img[black_img > THRES] = 255
     black_img = cv2.cvtColor(black_img, cv2.COLOR_BGR2GRAY)
     black_img[black_img != 0] = 255
-    cv2.imwrite("static/black.jpg", black_img)
+    if DEBUG_MODE: cv2.imwrite("./static/black%s.jpg"%random_id, black_img)
 
     hits = matcher.match_template(black_img)
     names = []
@@ -123,7 +128,7 @@ def get_image_classification():
         crop_resize = matcher.maintain_aspect_ratio_resize(crop,
                                              height=410)
         final_test = crop_resize[5:5 + 265, 5:5 + 190]
-        cv2.imwrite("./static/test/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
+        if DEBUG_MODE: cv2.imwrite("./static/test/%s.jpg" % key, final_test) # if recognition is wrong, add sample to "template/"
 
         # result_img = cv2.rectangle(result_img, (x, y), (x + w, y + h), [128, 0, 0], thickness=3)
         matched = matcher.match_hash(final_test, client.db, store)
@@ -146,15 +151,15 @@ def get_image_classification():
             result_img = cv2.cvtColor(np.asarray(result_img), cv2.COLOR_RGB2BGR)
 
     result_img = matcher.maintain_aspect_ratio_resize(result_img, width=1024)
-    cv2.imwrite("./static/result.jpg", result_img)
+    cv2.imwrite("./static/result%s.jpg"%random_id, result_img)
     names = list(dict.fromkeys(names))
     print("--- %s seconds ---" % (time.time() - start))
     print(names)
 
     with open('result.html', encoding='utf-8', errors='ignore') as f:
         response = f.read()
+        response = response.replace("static/result.jpg","static/result%s.jpg"%random_id)
     return  response
-
 
 @app.errorhandler(404)
 def page_not_found(e):
