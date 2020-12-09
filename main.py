@@ -95,7 +95,7 @@ def get_image_classification():
     except Exception as e:
         raise RuntimeError("Failed to load image data")
 
-    random_id = ''.join(random.sample(string.ascii_letters + string.digits, 16))
+    random_id = random.randint(0,9999)
     cv2.imwrite("./static/origin%s.jpg"%random_id, test_img)
     matcher = Match()
     # resize img to match template
