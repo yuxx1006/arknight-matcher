@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+from gevent.pywsgi import WSGIServer
 try:
     from PIL import Image, ImageDraw, ImageFont
 except ImportError:
@@ -10,7 +13,6 @@ import imagehash
 import json
 import os
 import numpy as np
-import jsonpickle
 import time
 from datetime import timedelta
 from modules.match import Match
@@ -189,4 +191,6 @@ if __name__ == "__main__":
         raise
 
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
-    app.run(host='0.0.0.0', port=5005, debug=True)
+    # app.run(host='0.0.0.0', port=5005, debug=True)
+    http_server = WSGIServer(('0.0.0.0', 5005), app)
+    http_server.serve_forever()
