@@ -1,23 +1,24 @@
+from gevent import monkey
+monkey.patch_all()
+from gevent.pywsgi import WSGIServer
 try:
     from PIL import Image, ImageDraw, ImageFont
 except ImportError:
     import Image
 import cv2
 from flask import Flask, request, Response
-from flask_pymongo import PyMongo, MongoClient
+from flask_pymongo import PyMongo
 from pymongo.errors import ConnectionFailure, AutoReconnect, ServerSelectionTimeoutError
 import imagehash
 import json
 import os
 import numpy as np
-import jsonpickle
 import time
 from datetime import timedelta
 from modules.match import Match
 from stores.image_hash_store import ImageHashStore
 from MTM import matchTemplates, drawBoxesOnRGB
 import random
-import string
 
 MONGO_URL = "127.0.0.1:27017/arknights"
 client = None
@@ -43,6 +44,7 @@ def load_hash():
                     hashes['operator'] = img.replace('.jpg', '')
                 images.append(hashes)
     return images
+
 
 # -------------- Test Routes ----------------
 @app.route('/', methods=['GET'])
@@ -84,7 +86,7 @@ def insert_hash(image_name):
     return response
 
 
-@app.route('/find-operators', methods=['POST'])
+@app.route('/matcher', methods=['POST'])
 def get_image_classification():
     start = time.time()
     try:
@@ -190,3 +192,5 @@ if __name__ == "__main__":
 
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=1)
     app.run(host='0.0.0.0', port=5005, debug=True)
+    # http_server = WSGIServer(('0.0.0.0', 5005), app)
+    # http_server.serve_forever()
